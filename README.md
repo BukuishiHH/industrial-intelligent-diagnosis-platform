@@ -21,7 +21,7 @@
 | 序号 | 文档 | 主要读者 | 说明 |
 | --- | --- | --- | --- |
 | 00 | [README.md](./README.md) | 全体成员 | 文档集索引、项目概览、术语与约束 |
-| 01 | [01_business_background_and_pain_points.md](./01_business_background_and_pain_points.md) | 业务方、产品、项目经理 | 项目痛点、业务背景、目标与价值 |
+| 01 | [01_business_background_and_pain_points.md](./docs/01_business_background_and_pain_points.md) | 业务方、产品、项目经理 | 项目痛点、业务背景、目标与价值 |
 | 02 | [02_business_functions.md](./docs/02_business_functions.md) | 业务方、产品、研发 | 业务功能清单、用户角色、典型场景 |
 | 03 | [03_agent_catalog_and_responsibilities.md](./docs/03_agent_catalog_and_responsibilities.md) | 架构师、算法、研发 | 智能体数量、职责、输入输出、协作关系 |
 | 04 | [04_system_architecture_design.md](./docs/04_system_architecture_design.md) | 架构师、研发、运维 | 整体架构、分层设计、部署拓扑、关键技术决策 |
