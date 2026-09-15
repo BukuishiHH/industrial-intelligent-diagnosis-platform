@@ -13,6 +13,7 @@ class Result(BaseModel, Generic[T]):
     """
     code: int = Field(description="响应状态码")
     message: str = Field(description="响应消息")
+    trace_id: Optional[str] = Field(default = None, description = "响应追踪ID")
     data: Optional[T] = Field(default=None, description="响应泛型数据")
 
     @classmethod

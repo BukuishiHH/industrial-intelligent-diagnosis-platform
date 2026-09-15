@@ -7,13 +7,14 @@ class BusinessException(Exception):
 
     def __init__(
         self,
-        code: ResultCode,
+        result_code: ResultCode,
         message: Optional[str] = None,
         detail: Optional[str] = None,
     ):
-        self.code: int = code.value                     # 存 int，与 Result.code 对齐
-        self.message: str = message or code.message     # 默认取枚举绑定的提示语
-        self.detail: Optional[str] = detail             # 附加调试信息
+        self.result_code = result_code
+        self.code = result_code.get_code
+        self.message = message or result_code.get_message
+        self.detail = detail
         super().__init__(self.message)
 
 

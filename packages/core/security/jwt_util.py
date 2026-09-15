@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jwt.exceptions import ExpiredSignatureError
 from jwt.exceptions import InvalidTokenError as JWTDecodeError
-from core.config import settings
-from core.errors import TokenExpiredError, InvalidTokenError
+from packages.core.config import settings
+from packages.core.errors import TokenExpiredError, InvalidTokenError
 
 
 # 生成 Token
