@@ -2,8 +2,8 @@
 
 | 项目名称 | 工业智能诊断平台（Industrial Intelligent Diagnosis Platform） |
 | --- | --- |
-| 文档版本 | v1.0（MVP 基线） |
-| 编制日期 | 2026-09-11 |
+| 文档版本 | v1.1（MVP 基线） |
+| 编制日期 | 2026-09-15 |
 | 编制人 | 成员A / 成员B |
 | 文档状态 | 评审中 |
 | 适用范围 | 2 人开发团队 MVP 版本；企业级扩展方案作为演进参考 |
@@ -18,6 +18,7 @@
 | 版本 | 日期 | 修订人 | 说明 |
 | --- | --- | --- | --- |
 | v1.0 | 2026-09-11 | 成员A/B | 合并 01/02/03/04/07/08 形成 MVP 基线文档 |
+| v1.1 | 2026-09-15 | 成员A/B | 按代码实现统一技术栈：关系库 MySQL+pymysql(3306)、向量库 ChromaDB、时序数据 MySQL；鉴权改为 JWT Bearer + bcrypt 登录体系；错误码采用 HTTP 语义码；前端改为 Vue3+JS；仓库统一 Github；修复 v1.0 中存储/鉴权/错误码/前端/仓库的矛盾表述 |
 
 ---
 
@@ -36,7 +37,7 @@
 | P1 | 设备故障人工排查耗时久 | 故障停机后工程师需数小时翻阅手册 | RAG 秒级检索文档知识库 |
 | P2 | 诊断高度依赖老工程师经验 | 经验断层时诊断质量下降 | 知识库沉淀经验 + LLM 推理 |
 | P3 | 知识传承困难 | 手册、工单、报告分散各处 | 统一知识库 + 诊断案例回流 |
-| P4 | 数据分散 | 文档、时序数据、报告各自孤立 | 统一数据层（PG + pgvector） |
+| P4 | 数据分散 | 文档、时序数据、报告各自孤立 | 统一数据层（MySQL + ChromaDB） |
 | P5 | 故障发现滞后 | 事后维修损失大 | 传感器数据实时特征分析 + 异常检测 |
 
 ---
@@ -55,9 +56,9 @@
 | Agent 形态 | LangGraph 图内进程节点，进程内函数调用 | A2A 协议分布式独立 Agent 服务 |
 | 工具调用 | Function-Calling + Pydantic Schema（MCP 思想） | 独立 MCP Server / Registry 集群，MCP over HTTP |
 | 部署形态 | Docker Compose 单体单实例 | Kubernetes + Helm 多副本、可观测全家桶 |
-| 鉴权安全 | API-Key + 基础 RBAC 角色 | Keycloak OIDC + 细粒度 ABAC + Vault 密钥管理 |
-| 数据存储 | PostgreSQL + pgvector、Redis、本地文件系统 | 独立时序库（TimescaleDB/IoTDB）+ MinIO + Milvus/Qdrant |
-| 前端 | 最小 Web 控制台（问诊、报告、文档上传） | 完整管理台（权限、监控、多租户） |
+| 鉴权安全 | JWT Bearer + bcrypt + 基础 RBAC 角色 | Keycloak OIDC + 细粒度 ABAC + Vault 密钥管理 |
+| 数据存储 | MySQL（业务+时序）、ChromaDB（向量）、Redis、本地文件系统 | 独立时序库（TimescaleDB/IoTDB）+ MinIO + Milvus/Qdrant |
+| 前端 | 最小 Web 控制台（Vue3：问诊、报告、文档上传） | 完整管理台（权限、监控、多租户） |
 | 数据源 | 开源数据 + AI 仿真数据 | 真实工业网关实时数据 |
 | 可观测性 | 结构化日志 + TraceID | OpenTelemetry 全链路 + Grafana/Loki/Tempo |
 | 测试 | 单元 + 集成 + 简单 E2E | 混沌注入、完整安全渗透、大规模自动化 |
@@ -100,7 +101,7 @@
 | FR-07 | 诊断任务、证据、报告全链路持久化，可历史查询 | Must |
 | FR-08 | 文档上传、解析、切块、向量化入库 | Must |
 | FR-09 | 简单 Web 控制台：问诊输入、报告展示、文档上传 | Must |
-| FR-10 | 基础 API-Key 鉴权与用户登录 | Should |
+| FR-10 | 用户登录（JWT Bearer + bcrypt）与基础 RBAC 角色 | Should |
 | FR-11 | 知识缺口/数据质量不足时的降级提示与置信度下调 | Should |
 | FR-12 | 复核通过案例回流知识库（案例沉淀） | Could |
 | FR-13 | 多设备/多租户数据隔离 | Won't（企业扩展） |
@@ -113,8 +114,8 @@
 | --- | --- | --- |
 | NFR-01 | 性能 | 单次诊断端到端 ≤ 60s（含 LLM 推理）；RAG 检索 ≤ 3s |
 | NFR-02 | 可用性 | 开发/演示环境单实例；支持故障恢复（Checkpoint 断点续跑） |
-| NFR-03 | 安全 | API-Key 鉴权；密钥走 .env 环境变量；关键操作审计留痕 |
-| NFR-04 | 可维护性 | 模块化 Monorepo 结构；统一错误码；结构化日志 + TraceID |
+| NFR-03 | 安全 | JWT Bearer 鉴权（bcrypt 密码哈希）；密钥走 .env 环境变量；关键操作审计留痕 |
+| NFR-04 | 可维护性 | 模块化 Monorepo 结构；统一错误码（HTTP 语义码）；结构化日志 + TraceID |
 | NFR-05 | 可扩展性 | Agent 节点、工具定义预留独立服务化接口（A2A / MCP 迁移点） |
 | NFR-06 | 数据质量 | 仿真数据可复现（固定随机种子）；文档切块可溯源（页码） |
 
@@ -179,11 +180,11 @@
 | Agent 编排 | LangGraph | 课程核心；单图编排、状态管理、条件分支、HITL |
 | LLM 调用 | OpenAI 兼容接口（DeepSeek） | 课程核心；Function-Calling 做工具调用，成本低 |
 | RAG | LangChain（文档加载、切块、混合检索、Rerank） | 课程核心；生态完善 |
-| 向量库 | ChromaDB | RAG 开发最主流向量库 |
-| 关系数据 | MySQL | 任务、报告、审计、用户 |
+| 向量库 | ChromaDB | RAG 开发最主流向量库，嵌入式部署，无需独立服务 |
+| 关系数据 | MySQL + pymysql（端口 3306） | 任务、报告、审计、用户、时序数据 |
 | 缓存/会话 | Redis（单实例） | LangGraph Checkpoint、会话缓存 |
 | 文件存储 | 本地文件系统 | MVP 阶段替代 MinIO；后期切 S3 |
-| 前端 | React 18 + JavaScript + Ant Design + Vite | 最小控制台 |
+| 前端 | Vue 3 + JavaScript + Vite + Element Plus | 最小控制台，Vue3 生态主流 |
 | 运行环境 | Docker Compose（单实例） | 一键启动，无需 K8s |
 | 代码仓库 | Github | 课程演示与托管 |
 
@@ -194,10 +195,10 @@
 | Agent 通信 | 进程内函数调用 | A2A 协议（Agent-to-Agent 网络通信） |
 | 工具协议 | Function-Calling + Pydantic | 独立 MCP Server / Registry，MCP over HTTP |
 | 编排 | LangGraph 单图 | 同上 + Agent 服务化 + 消息队列 |
-| 时序存储 | PostgreSQL 普通表 | TimescaleDB / IoTDB |
+| 时序存储 | MySQL 普通表（索引优化） | TimescaleDB / IoTDB |
 | 对象存储 | 本地文件系统 | MinIO / S3 |
-| 向量库 | pgvector | Milvus / Qdrant（数据量大时独立） |
-| 鉴权 | API-Key + 基础 RBAC | Keycloak OIDC + ABAC + Vault |
+| 向量库 | ChromaDB | Milvus / Qdrant（数据量大时独立） |
+| 鉴权 | JWT Bearer + bcrypt + 基础 RBAC | Keycloak OIDC + ABAC + Vault |
 | 可观测 | 结构化日志 + TraceID | OpenTelemetry + Prometheus + Grafana + Loki |
 | 部署 | Docker Compose | Kubernetes + Helm + Istio |
 
@@ -209,33 +210,33 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                    Web 前端(React + TS 最小控制台)              │
+│                  Web 前端（Vue3 最小控制台）                     │
 │              问诊输入 / 报告展示 / 文档上传                      │
 └──────────────────────────┬─────────────────────────────────────┘
                            │ HTTPS / REST
 ┌──────────────────────────▼─────────────────────────────────────┐
-│                    FastAPI 后端服务(单体进程)                   │
+│                    FastAPI 后端服务（单体进程）                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │        LangGraph 编排引擎(单图, DiagnosisState 流转)      │  │
+│  │        LangGraph 编排引擎（单图, DiagnosisState 流转）     │  │
 │  │   A1任务接收 → A2知识检索 → A3数据分析                     │  │
 │  │        → A4故障推理 → A5报告生成 → [HITL人工复核]          │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │   工具层(Function-Calling + Pydantic Schema, MCP 思想)    │  │
+│  │   工具层（Function-Calling + Pydantic Schema, MCP 思想）   │  │
 │  │   ① 知识库检索工具   ② 传感器时序查询工具   ③ 复核反馈工具   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │   LangChain RAG 模块：加载 / 切块 / Embedding / 混合检索   │  │
 │  └──────────────────────────────────────────────────────────┘  │
-│  鉴权(API-Key) │ 日志+TraceID │ 审计记录                        │
+│  鉴权（JWT Bearer + bcrypt）│ 日志+TraceID │ 审计记录           │
 └──────┬───────────────────────┬──────────────────┬─────────────┘
        │                       │                  │
 ┌──────▼──────┐   ┌────────────▼──────────┐   ┌───▼────────────┐
-│ PostgreSQL  │   │ Redis                 │   │ 本地文件系统    │
-│ + pgvector  │   │ (Checkpoint/缓存)     │   │ (文档/报告)     │
-│ 业务+向量    │   └───────────────────────┘   └────────────────┘
-│ +仿真时序    │
+│ MySQL       │   │ ChromaDB              │   │ Redis          │
+│ 业务+时序    │   │ 向量（Embedding）      │   │ (Checkpoint/缓存)│
+│ +全文检索    │   └───────────────────────┘   └────────────────┘
 └─────────────┘
+   本地文件系统（文档原文 / 报告附件）
 ```
 
 ### 7.2 企业级扩展架构（A2A + MCP）参考
@@ -250,7 +251,7 @@
 └────────────────┬────────────────────────────┘
                  │
 ┌────────────────▼─────────────────────────────┐
-│     MCP Registry / Proxy(工具标准化注册)      │
+│     MCP Registry / Proxy（工具标准化注册）     │
 └───┬─────────────────┬───────────────────┬────┘
 ┌───▼────┐   ┌────────▼────┐   ┌──────────▼──┐
 │ MCP    │   │ MCP         │   │ MCP         │
@@ -386,7 +387,7 @@ class KnowledgeSearchInput(BaseModel):
 
 def knowledge_search(args: KnowledgeSearchInput) -> list[dict]:
     """知识库混合检索工具：向量检索 + 关键词检索 + Rerank"""
-    # 调用 pgvector 相似度查询 + 全文检索，返回带页码证据
+    # 调用 ChromaDB 相似度查询 + MySQL 全文检索，返回带页码证据
     ...
 
 class SensorQueryInput(BaseModel):
@@ -395,7 +396,7 @@ class SensorQueryInput(BaseModel):
     sensor_ids: list[str]
 
 def sensor_query(args: SensorQueryInput) -> list[dict]:
-    """传感器时序查询工具：读取原始时序测点数据"""
+    """传感器时序查询工具：读取原始时序测点数据（MySQL）"""
     ...
 ```
 
@@ -421,8 +422,8 @@ def sensor_query(args: SensorQueryInput) -> list[dict]:
 | 数据类别 | 存储 | 说明 |
 | --- | --- | --- |
 | 业务数据（任务/报告/用户/审计） | MySQL | 关系表 |
-| 向量数据（文档切块 Embedding） | chromaDB | RAG 开发最主流入门向量库 |
-| 传感器时序数据 | MySQL(普通表 + 索引) | MVP 数据量小，无需独立时序库 |
+| 向量数据（文档切块 Embedding） | ChromaDB | RAG 开发最主流入门向量库，嵌入式部署 |
+| 传感器时序数据 | MySQL（普通表 + 索引） | MVP 数据量小，无需独立时序库 |
 | 会话/Checkpoint | Redis | LangGraph Checkpoint、缓存 |
 | 文档原文/报告附件 | 本地文件系统 | 目录按设备/任务组织；后期切 S3 |
 
@@ -447,7 +448,6 @@ def sensor_query(args: SensorQueryInput) -> list[dict]:
 | R3 | 文档知识库数据不足/切块质量差 | 检索效果差 | 中 | 开源数据 + AI 补充；检索评测指标把关（命中率@k） |
 | R4 | 仿真数据与真实场景偏差 | 演示说服力弱 | 中 | 基于 CMAPSS 分布生成；固定随机种子可复现；文档中声明仿真口径 |
 | R5 | 单点故障（单体部署） | 可用性 | 低 | Checkpoint 断点续跑；Docker Compose 一键重建 |
-| R6 | API-Key 泄露 | 安全 | 低 | 密钥仅存 .env；关键操作审计；本地演示环境 |
+| R6 | JWT 密钥/登录凭据泄露 | 安全 | 低 | 密钥仅存 .env；bcrypt 加盐哈希；Token 过期机制；关键操作审计；本地演示环境 |
 | R7 | 工具调用失败（数据库不可用等） | 流程中断 | 低 | 降级策略：跳过对应证据源、降低置信度、提示人工介入 |
-
----
+#（注：内容由AI生成）

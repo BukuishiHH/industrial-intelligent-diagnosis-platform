@@ -2,8 +2,8 @@
 
 | 项目名称 | 工业智能诊断平台 |
 | --- | --- |
-| 文档版本 | v1.0（MVP 基线） |
-| 编制日期 | 2026-09-11 |
+| 文档版本 | v1.1（MVP 基线） |
+| 编制日期 | 2026-09-15 |
 | 编制人 | 成员A / 成员B（占位，待填写） |
 | 文档状态 | 评审中 |
 | 关联文档 | [01_项目总设计文档.md](./MVP_01_项目总设计文档.md)、[03_开发计划测试与交付.md](./MVP_03_开发计划、测试与交付.md) |
@@ -17,6 +17,7 @@
 | 版本 | 日期 | 修订人 | 说明 |
 | --- | --- | --- | --- |
 | v1.0 | 2026-09-11 | 成员A/B | 合并 09/10/11/05 形成 MVP 技术设计基线 |
+| v1.1 | 2026-09-15 | 成员A/B | 技术栈对齐 v1.1 总设计：RAG 向量库与混合检索统一为 ChromaDB + MySQL 全文检索；数据模型 DDL 改为 MySQL 语法（向量本体存 ChromaDB）；错误码改为 HTTP 语义码（200/400/401/…）；鉴权改为 JWT Bearer + bcrypt；前端统一 Vue3；修复 v1.0 中 PG/MySQL、API-Key、React 等矛盾表述 |
 
 ---
 
@@ -32,14 +33,14 @@
 
 - **传感器测点**：每台设备 6 路：振动、温度、电流、转速、油压、噪声。
 - **仿真口径**：基于 CMAPSS 数据分布，用 Python 生成正常/异常运行片段，覆盖多种故障模式（轴承磨损、转子不平衡、油温异常等）；**固定随机种子，数据可复现**；所有仿真数据在文档与报告中明确标注「仿真」。
-- **向量化**：文档经 LangChain 加载 → 文本切块（约 500 token/块，重叠 10%）→ Embedding → 存入 chromaDB
+- **向量化**：文档经 LangChain 加载 → 文本切块（约 500 token/块，重叠 10%）→ Embedding → 存入 **ChromaDB**（collection：`industrial_docs`）。
 
 ### 1.2 硬件资源：MVP 开发 vs 企业生产
 
 | 资源项 | ✅ MVP 开发资源 | 📌 企业生产资源 |
 | --- | --- | --- |
 | 开发机 | 单台笔记本/PC（16G 内存，CPU 即可） | 多台服务器 + GPU 推理集群 |
-| 数据库 | Docker 内 MySQL + chromaDB + Redis 单实例 | 独立数据库集群 + 高可用 |
+| 数据库 | Docker 内 MySQL + ChromaDB + Redis 单实例 | 独立数据库集群 + 高可用 |
 | Embedding/LLM | 云端 OpenAI 兼容 API（DeepSeek） | 私有化部署 LLM / 专线 API |
 | 存储 | 本地磁盘（数十 GB 级） | 对象存储 + 时序库集群（TB 级） |
 | 运行环境 | Docker Compose 单机 | Kubernetes 多节点 |
@@ -57,7 +58,7 @@
 | **职责** | 工业文档全生命周期管理：上传、解析、切块、向量化、混合检索（向量 + 关键词 + Rerank）、溯源 |
 | **核心数据结构** | `Document`、`DocChunk`（见第 5 章数据模型） |
 | **核心接口** | `upload_document(file) -> doc_id`；`parse_and_chunk(doc_id)`；`embed_and_store(doc_id)`；`search(query, filters, top_k) -> list[EvidenceItem]` |
-| **MVP 实现** | LangChain 加载器 + RecursiveCharacterTextSplitter + 云端 Embedding API + pgvector 相似度查询；混合检索：pgvector 向量检索 + PostgreSQL 全文检索 + 简单 Rerank |
+| **MVP 实现** | LangChain 加载器 + RecursiveCharacterTextSplitter + 云端 Embedding API + ChromaDB 向量存储与相似度查询；混合检索：ChromaDB 向量检索 + MySQL 全文检索 + 简单 Rerank |
 | **企业扩展点** | 独立向量库（Milvus/Qdrant）、多路召回 + 重排模型、OCR 服务化、增量文档同步 |
 
 ### M02 传感器数据模块
@@ -97,7 +98,7 @@
 | **职责** | 对外输出：REST API、Web 控制台、诊断报告展示、文档上传界面 |
 | **核心数据结构** | `APIResponse`（统一响应结构）、`Report` |
 | **核心接口** | `POST /api/diagnosis/submit`；`GET /api/diagnosis/{task_id}`；`POST /api/diagnosis/{task_id}/review`；`POST /api/documents`；`GET /api/diagnosis/history` |
-| **MVP 实现** | FastAPI 路由 + Pydantic 响应模型；React 最小控制台（问诊表单、报告卡片、文档上传）；不实现复杂管理台 |
+| **MVP 实现** | FastAPI 路由 + Pydantic 响应模型；Vue3 最小控制台（问诊表单、报告卡片、文档上传）；不实现复杂管理台 |
 | **企业扩展点** | 完整管理台、多租户、告警推送、移动端、OpenAPI 全量导出对接第三方 |
 
 ### M06 平台支撑模块
@@ -106,8 +107,8 @@
 | --- | --- |
 | **职责** | 用户与鉴权、审计留痕、日志与 TraceID、配置管理 |
 | **核心数据结构** | `User`、`AuditLog`、配置项 |
-| **核心接口** | `authenticate(api_key)`；`check_rbac(user, role)`；`write_audit(action, params)`；`init_config()` |
-| **MVP 实现** | API-Key + 基础 RBAC（admin/engineer）；关键操作（诊断提交、复核、文档上传）写审计表；结构化日志 + TraceID 贯穿全链路；配置走 .env |
+| **核心接口** | `login(username, password) -> Token`；`authenticate(token)`；`check_rbac(user, role)`；`write_audit(action, params)`；`init_config()` |
+| **MVP 实现** | JWT Bearer + bcrypt 登录鉴权（PyJWT 签发/校验、bcrypt 加盐哈希）；基础 RBAC（admin/engineer）；关键操作（诊断提交、复核、文档上传）写审计表；结构化日志 + TraceID 贯穿全链路；配置走 .env |
 | **企业扩展点** | Keycloak OIDC、细粒度 ABAC、Vault 密钥管理、OpenTelemetry 全链路、审计 WORM |
 
 ### M07 存储集成模块
@@ -117,7 +118,7 @@
 | **职责** | 数据库/缓存/文件存储的统一访问封装：连接管理、迁移、事务、Checkpoint 持久化 |
 | **核心数据结构** | 数据模型（见第 5 章）；`Checkpoint` |
 | **核心接口** | `init_db()`；`save_checkpoint(task_id, state)`；`load_checkpoint(task_id)`；`save_report(task_id, report)` |
-| **MVP 实现** | SQLAlchemy + Alembic 迁移；pgvector 扩展；Redis 存 LangGraph Checkpoint；本地文件存文档原文与报告附件 |
+| **MVP 实现** | SQLAlchemy + Alembic 迁移；MySQL 存业务/时序数据、ChromaDB 存向量；Redis 存 LangGraph Checkpoint；本地文件存文档原文与报告附件 |
 | **企业扩展点** | 多库拆分（独立时序库/对象存储/向量库）、读写分离、备份恢复策略 |
 
 ---
@@ -138,7 +139,7 @@ sequenceDiagram
     participant TS as 时序查询工具
     participant A4 as A4故障推理
     participant A5 as A5报告生成
-    participant DB as PostgreSQL(pgvector)
+    participant DB as MySQL + ChromaDB
 
     U->>F: POST /api/diagnosis/submit {device_id, symptom, time_window}
     F->>G: 启动工作流，初始化 DiagnosisState
@@ -147,13 +148,13 @@ sequenceDiagram
     Note over G: 信息完整则并行调度 A2、A3
     G->>A2: 节点2a：知识检索
     A2->>TR: 调用检索工具(query+device)
-    TR->>DB: pgvector混合检索
+    TR->>DB: ChromaDB 向量检索 + MySQL 全文检索（混合检索）
     DB-->>TR: 证据块(带页码)
     TR-->>A2: evidence[]
     A2-->>G: evidence 写入 State
     G->>A3: 节点2b：数据分析
     A3->>TS: 调用时序查询工具
-    TS->>DB: 查询24路传感器数据
+    TS->>DB: 查询24路传感器数据（MySQL）
     DB-->>TS: 原始时序
     TS-->>A3: series
     A3->>A3: 特征计算+异常识别
@@ -168,7 +169,7 @@ sequenceDiagram
 
 ### 3.2 异常检测子流程
 
-1. 按 device_id + time_window 读取原始时序（24 路）；
+1. 按 device_id + time_window 读取原始时序（24 路，MySQL）；
 2. 数据清洗：剔除明显坏值、标记缺失段，输出 `data_quality`（缺失率/完整率）；
 3. 特征计算：RMS、峰峰值、峭度、均值/方差、频谱主频等；
 4. 阈值判定：对照设备健康基线阈值识别超限事件 → 生成 `AnomalyEvent`（类型、时段、严重度）；
@@ -204,8 +205,8 @@ flowchart LR
 ```text
 industrial_diagnosis/
 ├── README.md                     # 项目说明、环境启动、演示操作
-├── docker-compose.yml            # PG+pgvector、Redis 一键启动
-├── .env.example                  # 环境变量模板（LLM key、DB 配置）
+├── docker-compose.yml            # MySQL、ChromaDB、Redis 一键启动
+├── .env.example                  # 环境变量模板（LLM key、DB 配置、JWT 密钥）
 ├── requirements.txt              # Python 依赖
 ├── docs/                         # 项目文档（本三份 md）
 ├── data/
@@ -222,7 +223,14 @@ industrial_diagnosis/
 │   ├── core/                     # 可复用核心包
 │   │   ├── state.py              # DiagnosisState 定义
 │   │   ├── errors.py             # 统一错误码与异常
-│   │   └── config.py             # 配置加载
+│   │   ├── config.py             # 配置加载
+│   │   ├── database.py           # SQLAlchemy 引擎与会话（MySQL）
+│   │   ├── security/             # 鉴权工具
+│   │   │   ├── jwt_util.py       # JWT 签发/校验
+│   │   │   └── password_util.py  # bcrypt 密码哈希
+│   │   └── Result/               # 统一响应封装
+│   │       ├── Result.py         # Result 结构（code/message/trace_id/data）
+│   │       └── ResultCode.py     # HTTP 语义码枚举
 │   ├── agents/                   # LangGraph 节点（智能体）
 │   │   ├── a1_intake.py          # A1 任务接收
 │   │   ├── a2_rag.py             # A2 知识检索
@@ -234,7 +242,7 @@ industrial_diagnosis/
 │   ├── rag/                      # RAG 模块
 │   │   ├── loader.py             # 文档加载/切块
 │   │   ├── embedding.py          # Embedding 封装
-│   │   └── retriever.py          # 混合检索 + Rerank
+│   │   └── retriever.py          # 混合检索（ChromaDB + MySQL 全文）+ Rerank
 │   ├── tools/                    # 工具层（MCP 思想，Function-Calling）
 │   │   ├── knowledge_search_tool.py
 │   │   ├── sensor_query_tool.py
@@ -247,8 +255,8 @@ industrial_diagnosis/
 │   │   └── migrations/           # Alembic 迁移脚本
 │   └── llm/                      # LLM 封装（OpenAI 兼容）
 │       └── client.py             # DeepSeek 客户端 + Function-Calling
-├── frontend/                     # React + TS 最小控制台
-│   ├── src/pages/                # 问诊页/报告页/文档上传页
+├── frontend/                     # Vue3 最小控制台
+│   ├── src/views/                # 问诊页/报告页/文档上传页
 │   └── src/api/                  # API 客户端
 ├── ml/                           # 算法实验（特征/阈值/评测）
 │   ├── eval_metrics.py           # AI 评测指标
@@ -259,7 +267,7 @@ industrial_diagnosis/
     └── e2e/
 ```
 
-> 说明：Monorepo 采用 `apps/`（可运行服务）+ `packages/`（可复用包）+ `ml/`（算法）+ `frontend/`（前端）结构；砍掉企业方案中的 K8s/infra/多环境 overlays 目录。
+> 说明：Monorepo 采用 `apps/`（可运行服务）+ `packages/`（可复用包）+ `ml/`（算法）+ `frontend/`（前端）结构；砍掉企业方案中的 K8s/infra/多环境 overlays 目录。目录结构与现有代码实现对齐（security/、Result/、database.py 已落地）。
 
 ---
 
@@ -271,7 +279,7 @@ industrial_diagnosis/
 | --- | --- | --- |
 | `users` | 用户与角色 | M06 |
 | `documents` | 知识库文档元信息 | M01 |
-| `doc_chunks` | 文档切块 + 向量（pgvector） | M01 |
+| `doc_chunks` | 文档切块元数据 + ChromaDB 向量引用 | M01 |
 | `diagnosis_tasks` | 诊断任务主表 | M03/M05 |
 | `evidence` | 任务-证据关联（溯源） | M03 |
 | `sensor_series` | 传感器原始时序 | M02 |
@@ -281,104 +289,117 @@ industrial_diagnosis/
 | `review_records` | 人工复核记录 | M03 |
 | `audit_logs` | 审计日志 | M06 |
 
-### 5.2 关键表结构（DDL 示意）
+> 存储口径：**MySQL（InnoDB，utf8mb4）** 存业务、时序与全文检索数据；**ChromaDB** 存文档切块向量本体；MySQL 侧仅保存溯源元数据与 ChromaDB 向量 ID。
+
+### 5.2 关键表结构（DDL 示意，MySQL 语法）
 
 ```sql
--- 文档与向量（M01）
-CREATE TABLE documents (
-    id          BIGSERIAL PRIMARY KEY,
-    filename    TEXT NOT NULL,
-    doc_type    TEXT,                -- pdf/docx/txt
-    page_count  INT,
-    status      TEXT DEFAULT 'pending',  -- pending/parsed/embedded/failed
-    created_at  TIMESTAMPTZ DEFAULT now()
+-- 用户与角色（M06）
+CREATE TABLE users (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username    VARCHAR(64) UNIQUE NOT NULL,
+    password_hash VARCHAR(128) NOT NULL,   -- bcrypt 哈希（60 字符）
+    role        VARCHAR(32) DEFAULT 'engineer',  -- admin/engineer
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 文档与向量（M01）
+CREATE TABLE documents (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    filename    VARCHAR(512) NOT NULL,
+    doc_type    VARCHAR(32),                -- pdf/docx/txt
+    page_count  INT,
+    status      VARCHAR(32) DEFAULT 'pending',  -- pending/parsed/embedded/failed
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 文档切块：向量本体存 ChromaDB（collection: industrial_docs），此处存溯源元数据
 CREATE TABLE doc_chunks (
-    id          BIGSERIAL PRIMARY KEY,
-    doc_id      BIGINT REFERENCES documents(id),
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    doc_id      BIGINT,
     chunk_index INT,
     content     TEXT,
-    page        INT,                 -- 溯源页码
-    embedding   VECTOR(1024)         -- pgvector 向量列（维度按 Embedding 模型）
+    page        INT,                        -- 溯源页码
+    chroma_id   VARCHAR(128),               -- ChromaDB 向量 ID
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_chunks_doc ON doc_chunks(doc_id);
 
 -- 诊断任务（M03）
 CREATE TABLE diagnosis_tasks (
-    id            BIGSERIAL PRIMARY KEY,
-    task_id       UUID UNIQUE NOT NULL,
-    device_id     TEXT NOT NULL,
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id       VARCHAR(36) UNIQUE NOT NULL,
+    device_id     VARCHAR(64) NOT NULL,
     symptom       TEXT,
-    time_window   TEXT,
-    status        TEXT NOT NULL,          -- init/running/waiting_review/done
-    confidence    FLOAT,
-    diagnosis     JSONB,                  -- 根因假设快照
-    created_by    TEXT,
-    created_at    TIMESTAMPTZ DEFAULT now(),
-    updated_at    TIMESTAMPTZ DEFAULT now()
+    time_window   VARCHAR(64),
+    status        VARCHAR(32) NOT NULL,     -- init/running/waiting_review/done
+    confidence    DOUBLE,
+    diagnosis     JSON,                     -- 根因假设快照
+    created_by    VARCHAR(64),
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 证据溯源（M03）
 CREATE TABLE evidence (
-    id          BIGSERIAL PRIMARY KEY,
-    task_id     UUID REFERENCES diagnosis_tasks(task_id),
-    chunk_id    BIGINT REFERENCES doc_chunks(id),
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id     VARCHAR(36),
+    chunk_id    BIGINT,
     doc_id      BIGINT,
     page        INT,
     snippet     TEXT,
-    score       FLOAT
+    score       DOUBLE
 );
 
--- 传感器时序（M02，MVP 用普通表）
+-- 传感器时序（M02，MVP 用普通表 + 复合索引）
 CREATE TABLE sensor_series (
-    id          BIGSERIAL PRIMARY KEY,
-    device_id   TEXT NOT NULL,
-    sensor_id   TEXT NOT NULL,            -- vibration/temperature/...
-    ts          TIMESTAMPTZ NOT NULL,
-    value       DOUBLE PRECISION,
-    quality     TEXT DEFAULT 'ok'         -- ok/missing/outlier
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    device_id   VARCHAR(64) NOT NULL,
+    sensor_id   VARCHAR(64) NOT NULL,       -- vibration/temperature/...
+    ts          DATETIME(3) NOT NULL,
+    value       DOUBLE,
+    quality     VARCHAR(16) DEFAULT 'ok'    -- ok/missing/outlier
 );
 CREATE INDEX idx_series_dev_ts ON sensor_series(device_id, sensor_id, ts);
 
 -- 异常事件（M02）
 CREATE TABLE anomalies (
-    id           BIGSERIAL PRIMARY KEY,
-    task_id      UUID REFERENCES diagnosis_tasks(task_id),
-    device_id    TEXT,
-    sensor_id    TEXT,
-    anomaly_type TEXT,
-    severity     TEXT,
-    ts_start     TIMESTAMPTZ,
-    ts_end       TIMESTAMPTZ
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id      VARCHAR(36),
+    device_id    VARCHAR(64),
+    sensor_id    VARCHAR(64),
+    anomaly_type VARCHAR(64),
+    severity     VARCHAR(32),
+    ts_start     DATETIME(3),
+    ts_end       DATETIME(3)
 );
 
 -- 报告与复核（M03/M05）
 CREATE TABLE reports (
-    id          BIGSERIAL PRIMARY KEY,
-    task_id     UUID REFERENCES diagnosis_tasks(task_id),
-    content     JSONB,                     -- 结构化报告
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id     VARCHAR(36),
+    content     JSON,                       -- 结构化报告
     version     INT DEFAULT 1,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE review_records (
-    id          BIGSERIAL PRIMARY KEY,
-    task_id     UUID REFERENCES diagnosis_tasks(task_id),
-    decision    TEXT NOT NULL,             -- confirm/amend/reject
-    comment     TEXT,
-    reviewer    TEXT,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id         VARCHAR(36),
+    decision        VARCHAR(16) NOT NULL,   -- confirm/amend/reject
+    reviewer_comment TEXT,                  -- 原字段名 comment 为 MySQL 保留字，改名
+    reviewer        VARCHAR(64),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 审计（M06）
 CREATE TABLE audit_logs (
-    id          BIGSERIAL PRIMARY KEY,
-    action      TEXT NOT NULL,             -- diagnosis_submit/review/doc_upload/...
-    user_id     TEXT,
-    task_id     UUID,
-    params      JSONB,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    action      VARCHAR(64) NOT NULL,       -- diagnosis_submit/review/doc_upload/...
+    user_id     VARCHAR(64),
+    task_id     VARCHAR(36),
+    params      JSON,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -386,48 +407,37 @@ CREATE TABLE audit_logs (
 
 ## 6. 错误码规范
 
-### 6.1 错误码分段
+### 6.1 错误码分段（HTTP 语义码）
 
 | 分段 | 范围 | 含义 |
 | --- | --- | --- |
-| 通用 | 10000-10099 | 参数/请求错误 |
-| 鉴权 | 10100-10199 | 认证授权错误 |
-| 任务 | 10200-10299 | 诊断任务错误 |
-| 知识库 | 10300-10399 | 文档/RAG 错误 |
-| 数据 | 10400-10499 | 传感器/数据错误 |
-| 编排 | 10500-10599 | LangGraph/工具调用错误 |
-| 存储 | 10600-10699 | 数据库/缓存错误 |
+| 成功 | 200 | 操作成功 |
+| 客户端错误 | 400-499 | 参数/鉴权/权限/资源错误 |
+| 服务端错误 | 500-599 | 服务内部/业务处理错误 |
 
 ### 6.2 错误码表（示例）
 
 | 错误码 | HTTP 状态 | 含义 | 处理建议 |
 | --- | --- | --- | --- |
-| 10001 | 400 | 请求参数缺失或格式错误 | 校验入参后重试 |
-| 10002 | 400 | device_id 不存在 | 检查设备编号 |
-| 10101 | 401 | API-Key 无效 | 检查请求头 Authorization |
-| 10102 | 403 | 权限不足（RBAC） | 联系管理员授权 |
-| 10201 | 404 | 任务不存在 | 核对 task_id |
-| 10202 | 409 | 任务状态不允许该操作 | 按状态机流转 |
-| 10301 | 500 | 文档解析失败 | 检查文档格式 |
-| 10302 | 404 | 知识库无相关文档 | 走知识缺口降级 |
-| 10401 | 500 | 时序查询失败 | 检查数据接入 |
-| 10402 | 200（降级） | 传感器数据缺失率高 | 报告标注数据质量差 |
-| 10501 | 500 | LangGraph 工作流执行失败 | 查看 TraceID 日志 |
-| 10502 | 500 | 工具调用异常 | 查看工具日志 |
-| 10601 | 500 | 数据库连接失败 | 检查 PG/Redis 服务 |
-| 10602 | 500 | Checkpoint 保存/恢复失败 | 检查 Redis |
+| 200 | 200 | 操作成功 | - |
+| 400 | 400 | 请求参数缺失或格式错误 | 校验入参后重试 |
+| 401 | 401 | 未授权：Token 无效或已过期 | 重新登录获取 Token |
+| 403 | 403 | 权限不足（RBAC） | 联系管理员授权 |
+| 404 | 404 | 任务/资源不存在 | 核对 task_id |
+| 409 | 409 | 任务状态不允许该操作 | 按状态机流转 |
+| 500 | 500 | 服务器内部错误 | 查看 TraceID 日志 |
+| 501 | 501 | 业务处理失败 | 查看业务日志 |
 
 ### 6.3 统一响应结构
 
 ```json
 {
-  "code": 0,
+  "code": 200,
   "message": "success",
   "trace_id": "8f3a2c...",
   "data": {}
 }
 ```
 
-（`code=0` 表示成功；非 0 见错误码表；全链路日志携带同一 `trace_id` 便于排障。）
-
----
+（`code=200` 表示成功；非 200 见错误码表；全链路日志携带同一 `trace_id` 便于排障。）
+#（注：内容由AI生成）
