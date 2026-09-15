@@ -11,4 +11,4 @@ def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
 ) -> int:
     """从 Authorization: Bearer <token> 解析出当前登录用户的 user_id"""
-    return decode_token(credentials.credentials)
+    return int(payload["sub"])
