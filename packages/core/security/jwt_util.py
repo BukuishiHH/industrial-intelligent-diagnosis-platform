@@ -5,23 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jwt.exceptions import ExpiredSignatureError
 from jwt.exceptions import InvalidTokenError as JWTDecodeError
-from core.config import settings
-
-
-# 自定义异常
-class TokenError(Exception):
-    """JWT 相关异常基类"""
-    pass
-
-
-class TokenExpiredError(TokenError):
-    """Token 已过期"""
-    pass
-
-
-class InvalidTokenError(TokenError):
-    """Token 无效或格式错误"""
-    pass
+from packages.core.config import settings
+from packages.core.errors import TokenExpiredError, InvalidTokenError
 
 
 # 生成 Token
@@ -32,7 +17,7 @@ def create_access_token(
 ) -> str:
     """
     生成 access token。
-    :param user_id: 用户业务 ID（字符串）
+    :param user_id: 用户业务 ID(字符串)
     :param username: 用户名
     :param expires_days: 过期天数，默认取 settings.JWT_EXPIRE_DAYS
     :return: JWT 字符串
