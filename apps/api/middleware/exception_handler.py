@@ -20,7 +20,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     """ 全局兜底异常处理器：未知异常统一返回内部错误 """
     return JSONResponse(
         status_code=500,
-        content=Result.error(
+        content=Result.error_msg(
             ResultCode.SERVER_ERROR,
             msg="服务器内部错误",
         ).model_dump(),
