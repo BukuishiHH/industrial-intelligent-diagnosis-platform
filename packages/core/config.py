@@ -1,8 +1,12 @@
 # 配置文件：从环境变量中去加载配置信息, 并提供给其他模块使用
-import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 from functools import lru_cache
+
+
+# 项目根目录
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -46,8 +50,12 @@ class Settings(BaseSettings):
     RAG_DOC_PATH: str           # RAG 源文档路径
 
 
-    # 加载环境变量(优先会从系统环境变量中加载, 如果没有, 则从.env文件中加载, 如果也没有, 则使用默认值)
-    model_config = SettingsConfigDict(env_file=os.path.join(os.path.dirname(__file__), "..", ".env"), env_file_encoding="utf-8")
+    # 加载环境变量
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",          # 忽略 .env 里多余的变量
+        )
     
 
     # 数据库连接URL
