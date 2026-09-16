@@ -13,6 +13,7 @@ class ResultCode(Enum):
     UNAUTHORIZED = (401, "未授权，请登录")
     FORBIDDEN = (403, "权限不足，拒绝访问")
     NOT_FOUND = (404, "资源不存在")
+    CONFLICT = (409, "任务状态不允许该操作")
 
     # 服务端错误 5xx
     SERVER_ERROR = (500, "服务器内部异常")
