@@ -11,6 +11,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# 注册全局异常处理器
+register_exception_handlers(app)
 
 # 注册异常处理器
 register_exception_handlers(app)
