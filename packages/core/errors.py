@@ -25,6 +25,18 @@ class TokenExpiredError(BusinessException):
 
 
 class InvalidTokenError(BusinessException):
-    """Token 无效或格式错误"""
+    """ Token 无效或格式错误 """
+    def __init__(self, message: Optional[str] = None, detail: Optional[str] = None):
+        super().__init__(ResultCode.UNAUTHORIZED, message = message, detail = detail)
+
+
+class RegisterError(BusinessException):
+    """ 注册无效或参数错误 """
+    def __init__(self, message: Optional[str] = None, detail: Optional[str] = None):
+        super().__init__(ResultCode.BAD_REQUEST, message = message, detail = detail)
+
+
+class LoginError(BusinessException):
+    """ 登录无效或参数错误 """
     def __init__(self, message: Optional[str] = None, detail: Optional[str] = None):
         super().__init__(ResultCode.BAD_REQUEST, message = message, detail = detail)

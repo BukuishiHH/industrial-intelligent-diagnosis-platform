@@ -4,12 +4,11 @@ from sqlalchemy.orm import declarative_base
 from packages.core.config import settings
 
 
-DATABASE_URL = settings.get_database_url()
 
 
 # 数据库引擎
 engine = create_engine(
-    url = DATABASE_URL,
+    url = settings.get_database_url(),
     pool_size = settings.DATABASE_POOL_SIZE,
     max_overflow = settings.DATABASE_MAX_OVERFLOW,
     pool_recycle = settings.DATABASE_POOL_RECYCLE
