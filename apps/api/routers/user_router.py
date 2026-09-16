@@ -28,7 +28,7 @@ def register(
 # 登录接口
 @user_router.post(
     "/login",
-    response_model=Result[UserOut],
+    response_model=Result[TokenResponse],
     summary="用户登录",)
 def login(
     log: LoginRequest,
