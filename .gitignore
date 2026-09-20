@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== 项目运行时产物（由脚本/流程生成，不入库）=====
+# 检索索引：scripts/build_index.py 生成
+data/index/
+# 诊断报告与结构化记录副本（数据库为主存储）
+data/reports/
+# LangGraph checkpoint（SQLite，会话中断恢复用）
+data/checkpoints/
+# 注：data/raw_docs/ 下的手册与仿真数据集是数据资产，正常提交
+
+# ===== 前端构建产物 =====
+frontend/node_modules/
+frontend/dist/
+frontend/.npm-cache/
+
+# ===== 临时文件 =====
+*.tmp
+*.bak
+_filelist.tmp
