@@ -1,0 +1,215 @@
+# 设备检修诊断：测点阈值 / 别名 / 趋势判定规则
+# 数据来源：《设备传感器数据字段与波动范围文档》SENSOR-SPEC-001 表 3~6（唯一依据，禁止在提示词中硬编码）
+# 各设备手册中的测点命名不同，aliases 用于把手册/用户表述归一化到数据字段
+version: "1.0"
+source: "SENSOR-SPEC-001 表 3~6"
+
+defaults:
+  interval_seconds: 60          # 采样间隔（SENSOR-SPEC-001 §1.1）
+  max_window_days: 30           # 单次查询窗口上限（设计决策 5.5）
+  min_window_hours: 1
+  missing_rate_warn: 0.10       # 缺失率 >10% 必须告警（SENSOR-SPEC-001 §5.2）
+  default_window_hours: 72      # 未提及时间时（设计决策 D1）
+  midpoint_span_hours: 36       # 仅给时间点/模糊时段时，以中点为轴 ±36h
+
+devices:
+  FJ-01:
+    model: FJ-CY1250-4
+    rated_speed: 1480
+    drive: "132 kW / 380 V"
+    bearing_type: rolling       # 滚动轴承
+    points:
+      speed:
+        unit: r/min
+        decimals: 0
+        normal: {min: 1470, max: 1490}
+        alarm: {low: 1455, high: 1505}
+        trip: {high: 1560}
+        aliases: ["转速", "主轴转速"]
+      v1:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 2.8}
+        alarm: {high: 4.5}
+        trip: {high: 7.1}
+        aliases: ["V1", "v1", "驱动端水平振动", "风机驱动端水平振动"]
+      v3:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 2.8}
+        alarm: {high: 4.5}
+        trip: {high: 7.1}
+        aliases: ["V3", "v3", "非驱动端水平振动"]
+      bearing_temp:
+        unit: ℃
+        decimals: 1
+        normal: {min: 35, max: 65}
+        alarm: {high: 75}
+        trip: {high: 85}
+        aliases: ["轴承温度", "瓦温", "轴承温度(滚动)"]
+      oil_pressure:
+        unit: MPa
+        decimals: 2
+        normal: {min: 0.15, max: 0.35}
+        alarm: {low: 0.12, high: 0.40}
+        trip: {low: 0.08}
+        aliases: ["供油压力", "油压", "供油母管压力"]
+      current:
+        unit: A
+        decimals: 1
+        normal: {max: 228}
+        alarm: {high: 252}
+        trip: {high: 264}
+        aliases: ["电流", "电机电流", "三相平均电流"]
+
+  FJ-02:
+    model: FJ-YX-2000/980
+    rated_speed: 980
+    drive: "500 kW / 6 kV"
+    bearing_type: sliding       # 滑动轴承（瓦温）
+    points:
+      speed:
+        unit: r/min
+        decimals: 0
+        normal: {min: 970, max: 990}
+        alarm: {high: 1030}
+        trip: {high: 1080}
+        aliases: ["转速", "主轴转速"]
+      v1:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 4.5}
+        alarm: {high: 7.1}
+        trip: {high: 11.2}
+        aliases: ["VB-01X", "驱动端水平振动", "1X 振动"]
+      v3:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 4.5}
+        alarm: {high: 7.1}
+        trip: {high: 11.2}
+        aliases: ["VB-02X", "非驱动端水平振动"]
+      bearing_temp:
+        unit: ℃
+        decimals: 1
+        normal: {min: 35, max: 70}
+        alarm: {high: 75}
+        trip: {high: 85}
+        aliases: ["瓦温", "轴瓦温度", "轴承温度"]
+      oil_pressure:
+        unit: MPa
+        decimals: 2
+        normal: {min: 0.15, max: 0.25}
+        alarm: {low: 0.12, high: 0.30}
+        trip: {low: 0.08}
+        aliases: ["供油压力", "油压", "供油母管压力"]
+      current:
+        unit: A
+        decimals: 1
+        normal: {max: 58.5}
+        alarm: {high: 61.4}
+        trip: {high: 67.3}
+        aliases: ["电流", "电机电流"]
+
+  FJ-03:
+    model: FJ-YF-2800/6800
+    rated_speed: 990
+    drive: "800 kW / 10 kV"
+    bearing_type: sliding
+    points:
+      speed:
+        unit: r/min
+        decimals: 0
+        normal: {min: 980, max: 1000}
+        alarm: {high: 1030}      # 二级报警
+        trip: {high: 1080}
+        aliases: ["转速", "主轴转速"]
+      v1:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 2.8}
+        alarm: {high: 4.5}       # 二级报警
+        trip: {high: 7.1}
+        aliases: ["VB-01X", "前轴承水平振动", "前轴承 X 向"]
+      v3:
+        unit: mm/s
+        decimals: 1
+        normal: {max: 2.8}
+        alarm: {high: 4.5}
+        trip: {high: 7.1}
+        aliases: ["VB-02X", "后轴承水平振动", "后轴承 X 向"]
+      bearing_temp:
+        unit: ℃
+        decimals: 1
+        normal: {max: 60}
+        alarm: {high: 70}        # 二级报警
+        trip: {high: 85}
+        aliases: ["瓦温", "轴瓦温度", "轴承温度"]
+      oil_pressure:
+        unit: MPa
+        decimals: 2
+        normal: {min: 0.15, max: 0.30}
+        alarm: {low: 0.12, high: 0.40}
+        trip: {low: 0.08}
+        aliases: ["供油压力", "油压", "供油母管压力"]
+      current:
+        unit: A
+        decimals: 1
+        normal: {max: 45.5}
+        alarm: {high: 58}
+        trip: {high: 62}
+        aliases: ["电流", "电机电流"]
+
+# 波动趋势判定限值（SENSOR-SPEC-001 表 6）；趋势异常与瞬时报警独立触发
+trend_rules:
+  - id: vib_rise_24h
+    sensors: [v1, v3]
+    type: rise_over_window
+    window_hours: 24
+    threshold: 1.5
+    unit: mm/s
+    conclusion: "24h 内振动上升超过 1.5 mm/s，优先排查叶轮积灰结垢"
+    case_hint: "故障案例手册 案例1"
+  - id: vib_jump_10min
+    sensors: [v1, v3]
+    type: jump_in_window
+    window_minutes: 10
+    threshold: 2.5
+    unit: mm/s
+    conclusion: "10min 内振动突变超过 2.5 mm/s，突发异常，排查碰磨、轴承损坏、对中破坏"
+    case_hint: "故障案例手册 案例2"
+  - id: temp_rise_rate
+    sensors: [bearing_temp]
+    type: rise_rate
+    window_minutes: 60
+    threshold: 5.0
+    unit: "℃/h"
+    conclusion: "轴承温度上升速率超过 5 ℃/h，排查润滑、冷却与轴承故障"
+    case_hint: "操作手册 试车异常处理"
+  - id: oil_pressure_fluctuation
+    sensors: [oil_pressure]
+    type: fluctuation_per_minute
+    window_minutes: 1
+    threshold: 0.03
+    unit: MPa
+    conclusion: "供油压力波动超过 ±0.03 MPa/min，排查油泵、滤网、调压阀"
+    case_hint: "操作手册 润滑系统"
+  - id: speed_steady_fluctuation
+    sensors: [speed]
+    type: steady_fluctuation
+    window_hours: 24
+    threshold: 25              # FJ-01；FJ-02/03 设计设定 ±20
+    threshold_by_device: {FJ-02: 20, FJ-03: 20}
+    unit: r/min
+    conclusion: "稳态转速波动超限，排查变频器与测速回路"
+    case_hint: "操作手册 巡检要求"
+  - id: current_unbalance
+    sensors: [current]
+    type: unsupported
+    conclusion: "三相电流不平衡度超过 10%：当前数据集仅提供三相平均电流，无法计算"
+    case_hint: "操作手册 常见现象"
+  - id: current_load_rise
+    sensors: [current]
+    type: unsupported
+    conclusion: "额定工况下电流上升超过 5% 并伴随风量下降：当前数据集无风量测点，无法计算"
+    case_hint: "操作手册 常见现象"

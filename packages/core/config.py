@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     JWT_EXPIRE_DAYS: int = 7            # JWT 过期时间
 
 
+    ######## Embedding 服务（WSL2 内 SGLang，OpenAI 兼容接口）########
+    EMBEDDING_BASE_URL: str = "http://localhost:30000/v1"
+    EMBEDDING_MODEL: str = ""
+    EMBEDDING_DIM: int = 1024
+    EMBEDDING_API_KEY: str = "not-needed"
+
+
     ######## RAG 配置 ########
     DIMENSION: int              # 向量维度
     CHUNK_SIZE: int             # 切割后的文本块大小
